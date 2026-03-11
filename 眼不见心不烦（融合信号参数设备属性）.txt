@@ -1,0 +1,326 @@
+//<script>
+(() => {
+    const CONFIG = {
+        footer: {
+            key: 'hiddenFooter',
+            selector: '.footer',
+            defaultHidden: false,
+            buttonText: '底部栏',
+            specialHide: true
+        },
+        ttyd: {
+            key: 'hiddenTTYD',
+            selector: '#TTYD',
+            defaultHidden: false,
+            buttonText: 'TTYD窗口',
+            specialHide: true
+        },
+        cpuChart: {
+            key: 'hiddenCpuChart',
+            selector: '#kanoCpuChart',
+            defaultHidden: false,
+            buttonText: 'CPU使用率'
+        },
+        cpuCoreChart: {
+            key: 'hiddenCpuCoreChart',
+            selector: '#kanoCpuCoreChart',
+            defaultHidden: false,
+            buttonText: '核心使用率'
+        },
+        cpuFreqChart: {
+            key: 'hiddenCpuFreqChart',
+            selector: '#cpuFreqList',
+            defaultHidden: false,
+            buttonText: 'CPU频率'
+        },
+        memChart: {
+            key: 'hiddenMemChart',
+            selector: '#kanoMemChart',
+            defaultHidden: false,
+            buttonText: '内存监控'
+        },
+        tempChart: {
+            key: 'hiddenTempChart',
+            selector: '#kanoTempChart',
+            defaultHidden: false,
+            buttonText: '温度监控'
+        },
+        netChart: {
+            key: 'hiddenNetChart',
+            selector: '#kanoNetChart',
+            defaultHidden: false,
+            buttonText: '网络监控'
+        },
+        // 新增：设备属性
+        deviceAttr: {
+            key: 'hiddenDeviceAttr',
+            selector: 'b:contains(设备属性)',
+            defaultHidden: false,
+            buttonText: '设备属性',
+            specialHide: true 
+        },
+        // 新增：信号参数
+        signalParam: {
+            key: 'hiddenSignalParam',
+            selector: 'b:contains(信号参数)', 
+            defaultHidden: false,
+            buttonText: '信号参数',
+            specialHide: true 
+        }
+    };
+
+    // 初始化状态
+    let hiddenState = JSON.parse(localStorage.getItem('hiddenElements')) || {};
+    Object.keys(CONFIG).forEach(item => {
+        if (hiddenState[CONFIG[item].key] === undefined) {
+            hiddenState[CONFIG[item].key] = CONFIG[item].defaultHidden;
+        }
+    });
+
+    // 自定义处理设备属性/信号参数的隐藏逻辑
+    function handleSpecialElementHide(type, hidden) {
+        // 设备属性处理
+        if (type === 'deviceAttr') {
+            const deviceBElements = document.querySelectorAll('b');
+            deviceBElements.forEach(b => {
+                if (b.textContent === '设备属性') {
+                    const parentTitle = b.closest('div.title');
+                    if (parentTitle) {
+                        parentTitle.style.display = hidden ? 'none' : '';
+                    }
+                }
+            });
+        }
+        // 信号参数处理
+        else if (type === 'signalParam') {
+            const signalBElements = document.querySelectorAll('b');
+            signalBElements.forEach(b => {
+                if (b.textContent === '信号参数') {
+                    const parentTitle = b.closest('div.title');
+                    if (parentTitle) {
+                        parentTitle.style.display = hidden ? 'none' : '';
+                    }
+                }
+            });
+        }
+    }
+
+    // 更新元素可见性（扩展支持设备属性/信号参数）
+    function updateElementVisibility(selector, hidden, specialHide = false, type = '') {
+        // 处理设备属性/信号参数的特殊逻辑
+        if (type === 'deviceAttr' || type === 'signalParam') {
+            handleSpecialElementHide(type, hidden);
+            return;
+        }
+
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+            if (!element) return;
+
+            if (specialHide) {
+                element.style.visibility = hidden ? 'hidden' : 'visible';
+                element.style.height = hidden ? '0' : '';
+                element.style.overflow = hidden ? 'hidden' : '';
+                element.style.position = hidden ? 'absolute' : '';
+            } else {
+                element.style.display = hidden ? 'none' : '';
+                
+                if (element.parentNode && element.parentNode.style) {
+                    element.parentNode.style.display = hidden ? 'none' : '';
+                }
+            }
+        });
+    }
+
+    // 自动隐藏元素
+    function autoHideElements() {
+        Object.keys(CONFIG).forEach(item => {
+            if (hiddenState[CONFIG[item].key]) {
+                updateElementVisibility(CONFIG[item].selector, true, CONFIG[item].specialHide, item);
+            }
+        });
+
+        // 监听DOM变化，确保动态加载的元素也能被隐藏
+        const observer = new MutationObserver(() => {
+            Object.keys(CONFIG).forEach(item => {
+                if (hiddenState[CONFIG[item].key]) {
+                    updateElementVisibility(CONFIG[item].selector, true, CONFIG[item].specialHide, item);
+                }
+            });
+        });
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    // 创建切换按钮
+    function createToggleButton(config, type) {
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        const displayText = config.buttonText.length > 6 ? 
+            config.buttonText.substring(0, 6) : config.buttonText;
+        btn.textContent = `${hiddenState[config.key] ? '显示' : '隐藏'}${displayText}`;
+        btn.style.cssText = `
+            background: ${hiddenState[config.key] ? '#2196F3' : 'var(--dark-btn-color)'};
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            min-width: 80px;
+        `;
+        btn.onclick = () => {
+            hiddenState[config.key] = !hiddenState[config.key];
+            localStorage.setItem('hiddenElements', JSON.stringify(hiddenState));
+            btn.textContent = `${hiddenState[config.key] ? '显示' : '隐藏'}${displayText}`;
+            btn.style.background = hiddenState[config.key] ? '#2196F3' : 'var(--dark-btn-color)';
+            updateElementVisibility(config.selector, hiddenState[config.key], config.specialHide, type);
+        };
+        return btn;
+    }
+
+    // 创建控制面板
+    function createControlPanel() {
+        const modal = document.createElement("div");
+        modal.id = "eyeControlModal";
+        modal.className = "modal";
+        modal.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 500px;
+            background: var(--dark-bg-color);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            display: none;
+            z-index: 9999;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        `;
+
+        // 标题
+        const title = document.createElement("div");
+        title.textContent = "眼不见心不烦";
+        title.style.cssText = `
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: white;
+            text-align: center;
+        `;
+        modal.appendChild(title);
+
+        // 控制按钮容器
+        const btnContainer = document.createElement("div");
+        btnContainer.style.cssText = `
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
+        `;
+
+        // 添加元素控制按钮
+        Object.keys(CONFIG).forEach(item => {
+            const btn = createToggleButton(CONFIG[item], item);
+            btnContainer.appendChild(btn);
+        });
+
+        modal.appendChild(btnContainer);
+
+        // 操作按钮
+        const actionContainer = document.createElement("div");
+        actionContainer.style.cssText = `
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        `;
+
+        const resetBtn = document.createElement("button");
+        resetBtn.textContent = "重置所有";
+        resetBtn.className = "btn";
+        resetBtn.style.cssText = `
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        `;
+        resetBtn.onclick = () => {
+            Object.keys(CONFIG).forEach(item => {
+                hiddenState[CONFIG[item].key] = CONFIG[item].defaultHidden;
+                updateElementVisibility(CONFIG[item].selector, CONFIG[item].defaultHidden, CONFIG[item].specialHide, item);
+            });
+            localStorage.setItem('hiddenElements', JSON.stringify(hiddenState));
+            location.reload();
+        };
+        actionContainer.appendChild(resetBtn);
+
+        const closeBtn = document.createElement("button");
+        closeBtn.textContent = "关闭";
+        closeBtn.className = "btn";
+        closeBtn.style.cssText = `
+            background: var(--dark-btn-color);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        `;
+        closeBtn.onclick = () => modal.style.display = "none";
+        actionContainer.appendChild(closeBtn);
+
+        modal.appendChild(actionContainer);
+        document.body.appendChild(modal);
+        return modal;
+    }
+
+    // 初始化
+    function initialize() {
+        // 创建入口按钮
+        const eyeBtn = document.createElement("button");
+        eyeBtn.className = "btn";
+        eyeBtn.textContent = '眼不见心不烦';
+        eyeBtn.style.cssText = `
+            background: var(--dark-btn-color);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 10px;
+        `;
+        eyeBtn.onclick = () => {
+            const modal = document.getElementById('eyeControlModal') || createControlPanel();
+            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+        };
+
+        // 添加到工具箱
+        const waitForToolbox = setInterval(() => {
+            const toolbox = document.getElementById('toolbox_buttons');
+            if (toolbox) {
+                clearInterval(waitForToolbox);
+                toolbox.appendChild(eyeBtn);
+            }
+        }, 100);
+
+        // 30秒超时
+        setTimeout(() => clearInterval(waitForToolbox), 30000);
+        
+        // 1.5秒后自动隐藏元素
+        setTimeout(autoHideElements, 1500);
+    }
+
+    // 启动初始化
+    if (document.readyState === 'complete') {
+        initialize();
+    } else {
+        window.addEventListener('load', initialize);
+    }
+})();
+//</script>
